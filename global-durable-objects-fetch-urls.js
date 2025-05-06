@@ -1,3 +1,4 @@
+// Durable Object implementation
 export class GlobalDurableObjectsFetchUrls {
   constructor(state, env) {
     this.state = state;
@@ -7,20 +8,24 @@ export class GlobalDurableObjectsFetchUrls {
   async fetch(request) {
     const url = new URL(request.url);
 
-    if (url.pathname === "/lock") {
-      const locked = await this.state.storage.get("running");
-      if (locked)
-        return new Response("Locked", { status: 423 });
-
-      await this.state.storage.put("running", true);
-      return new Response("Acquired");
+    if (url.pathname === '/control') {
+      // Return the current control state
+      const control = await this.state.storage.get('control') || { processed: 0, remaining: 1000 };
+      return new Response(JSON.stringify(control), { headers: { 'content-type': 'application/json' } });
     }
 
-    if (url.pathname === "/unlock") {
-      await this.state.storage.delete("running");
-      return new Response("Released");
+    if (url.pathname === '/update') {
+      const { processed } = await request.json();
+      const control = await this.state.storage.get('control') || { processed: 0, remaining: 1000 };
+
+      // Update the control state
+      control.processed += processed;
+      control.remaining -= processed;
+
+      await this.state.storage.put('control', control);
+      return new Response('Updated');
     }
 
-    return new Response("Bad request", { status: 400 });
+    return new Response('Not Found', { status: 404 });
   }
 }
