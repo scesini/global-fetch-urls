@@ -1,3 +1,5 @@
+import { GlobalDurableObjectsFetchUrls } from "./global-durable-objects-fetch-urls";
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -21,6 +23,8 @@ export default {
     console.log(result);
   },
 };
+
+export { GlobalDurableObjectsFetchUrls };
 
 // The handle function remains unchanged
 async function handle(env, ctx) {
