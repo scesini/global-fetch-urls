@@ -8,7 +8,7 @@ account_id = "f9e6c318356fc5438de52004c85a0d5b"
 
 [durable_objects]
 bindings = [
-  { name = "GLOBAL_FETCH_URLS", class_name = "GlobalDurableObjectsFetchUrls" }
+  { name = "GlobalDurableObjectsFetchUrls", class_name = "GlobalDurableObjectsFetchUrls" }
 ]
 
 [[migrations]]
