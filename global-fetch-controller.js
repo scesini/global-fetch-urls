@@ -5,7 +5,7 @@ export class GlobalFetchController {
     this.MAX_URLS_PER_RUN = 20;
   }
 
-  async handleRequest(request) {
+  async handleRequest() {
     return this.run();
   }
 
@@ -14,55 +14,52 @@ export class GlobalFetchController {
   }
 
   async run() {
-    const objId = this.env.GLOBAL_FETCH_URLS.idFromName("execution-lock");
-    const stub = this.env.GLOBAL_FETCH_URLS.get(objId);
+    const lockId = this.env.GLOBAL_FETCH_URLS.idFromName("lock");
+    const stub = this.env.GLOBAL_FETCH_URLS.get(lockId);
 
-    const lockRes = await stub.fetch("https://lock");
-    if (lockRes.status === 423) {
-      return new Response("Another job is already running", { status: 429 });
+    const lock = await stub.fetch("https://lock");
+    if (lock.status === 423) {
+      return new Response("Already running", { status: 429 });
     }
 
     try {
       while (true) {
         const { results } = await this.env.DB.prepare(
-          'SELECT remaining FROM global_sitemaps_control WHERE id = 1 LIMIT 1'
+          "SELECT remaining FROM global_sitemaps_control WHERE id = 1"
         ).all();
 
-        const control = results[0];
-        if (!control || control.remaining <= 0) break;
+        if (!results.length || results[0].remaining <= 0) break;
 
         await this.processBatch();
       }
 
-      return new Response("✅ Done: All URLs processed");
+      return new Response("✅ All URLs processed");
     } finally {
       await stub.fetch("https://unlock");
     }
   }
 
   async processBatch() {
-    const urlsQuery = await this.env.DB.prepare(`
+    const urls = await this.env.DB.prepare(`
       SELECT id, url FROM global_sitemaps_urls
       WHERE fetched IS NULL
       LIMIT ?
     `).bind(this.MAX_URLS_PER_RUN).all();
 
-    const urls = urlsQuery.results;
-
-    for (const { id, url } of urls) {
+    for (const row of urls.results) {
       try {
-        const res = await fetch(url);
+        const res = await fetch(row.url);
         await this.env.DB.prepare(`
           UPDATE global_sitemaps_urls
           SET fetched = CURRENT_TIMESTAMP, status = ?
           WHERE id = ?
-        `).bind(res.status, id).run();
-      } catch (err) {
+        `).bind(res.status, row.id).run();
+      } catch {
         await this.env.DB.prepare(`
           UPDATE global_sitemaps_urls
           SET fetched = CURRENT_TIMESTAMP, status = 0
           WHERE id = ?
-        `).bind(id).run();
+        `).bind(row.id).run();
       }
     }
 
@@ -70,6 +67,6 @@ export class GlobalFetchController {
       UPDATE global_sitemaps_control
       SET processed = processed + ?, remaining = remaining - ?, last_run_at = CURRENT_TIMESTAMP
       WHERE id = 1
-    `).bind(urls.length, urls.length).run();
+    `).bind(urls.results.length, urls.results.length).run();
   }
 }
