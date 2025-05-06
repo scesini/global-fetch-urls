@@ -1,0 +1,19 @@
+name = "global-fetch-urls"
+main = "index.js"
+compatibility_date = "2024-05-01"
+workers_dev = true
+account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"  # ← Replace with yours
+
+[durable_objects]
+bindings = [
+  { name = "GLOBAL_FETCH_URLS", class_name = "GlobalFetchUrls" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["GlobalFetchUrls"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "global_fetch_urls_db"
+database_id = "YOUR_DATABASE_ID"  # ← Replace with yours
