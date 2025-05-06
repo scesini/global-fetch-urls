@@ -11,10 +11,6 @@ bindings = [
   { name = "GlobalDurableObjectsFetchUrls", class_name = "GlobalDurableObjectsFetchUrls" }
 ]
 
-[[migrations]]
-tag = "v2"
-new_sqlite_classes = ["GlobalDurableObjectsFetchUrls"]
-
 [[d1_databases]]
 binding = "DB"
 database_name = "yoast_sitemaps"
