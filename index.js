@@ -1,4 +1,5 @@
 import { GlobalFetchController } from './global-fetch-controller.js';
+import { GlobalDurableObjectsFetchUrls } from './global-durable-objects-fetch-urls.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -11,3 +12,5 @@ export default {
     return controller.handleScheduled();
   },
 };
+
+export { GlobalDurableObjectsFetchUrls };
