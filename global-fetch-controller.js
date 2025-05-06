@@ -2,71 +2,53 @@ export class GlobalFetchController {
   constructor(env, ctx) {
     this.env = env;
     this.ctx = ctx;
-    this.MAX_URLS_PER_RUN = 20;
   }
 
-  async handleRequest() {
-    return this.run();
+  async handleRequest(request) {
+    const { pathname } = new URL(request.url);
+
+    if (pathname === "/manual-run") {
+      return await this.executeJob();
+    }
+
+    return new Response("Not Found", { status: 404 });
   }
 
   async handleScheduled() {
-    return this.run();
+    return await this.executeJob();
   }
 
-  async run() {
-    const lockId = this.env.GLOBAL_FETCH_URLS.idFromName("lock");
-    const stub = this.env.GLOBAL_FETCH_URLS.get(lockId);
+  async executeJob() {
+    const id = this.env.GLOBAL_FETCH_URLS.idFromName("singleton");
+    const stub = this.env.GLOBAL_FETCH_URLS.get(id);
 
-    const lock = await stub.fetch("https://lock");
-    if (lock.status === 423) {
-      return new Response("Already running", { status: 429 });
+    // Try to acquire lock
+    const lockRes = await stub.fetch("https://do/lock");
+    if (lockRes.status === 423) {
+      return new Response("Job already running", { status: 423 });
     }
 
     try {
-      while (true) {
-        const { results } = await this.env.DB.prepare(
-          "SELECT remaining FROM global_sitemaps_control WHERE id = 1"
-        ).all();
+      // TODO: Your actual DB query & logic goes here
+      const { results } = await this.env.DB.prepare(`
+        SELECT id, url FROM global_sitemaps_urls
+        LIMIT 20;
+      `).all();
 
-        if (!results.length || results[0].remaining <= 0) break;
-
-        await this.processBatch();
+      // Simulate processing
+      for (const row of results) {
+        console.log("Processing URL:", row.url);
       }
 
-      return new Response("✅ All URLs processed");
+      // Example update
+      await this.env.DB.prepare(`
+        UPDATE global_sitemaps_control SET remaining = remaining - ?
+      `).bind(results.length).run();
+
     } finally {
-      await stub.fetch("https://unlock");
-    }
-  }
-
-  async processBatch() {
-    const urls = await this.env.DB.prepare(`
-      SELECT id, url FROM global_sitemaps_urls
-      WHERE fetched IS NULL
-      LIMIT ?
-    `).bind(this.MAX_URLS_PER_RUN).all();
-
-    for (const row of urls.results) {
-      try {
-        const res = await fetch(row.url);
-        await this.env.DB.prepare(`
-          UPDATE global_sitemaps_urls
-          SET fetched = CURRENT_TIMESTAMP, status = ?
-          WHERE id = ?
-        `).bind(res.status, row.id).run();
-      } catch {
-        await this.env.DB.prepare(`
-          UPDATE global_sitemaps_urls
-          SET fetched = CURRENT_TIMESTAMP, status = 0
-          WHERE id = ?
-        `).bind(row.id).run();
-      }
+      await stub.fetch("https://do/unlock");
     }
 
-    await this.env.DB.prepare(`
-      UPDATE global_sitemaps_control
-      SET processed = processed + ?, remaining = remaining - ?, last_run_at = CURRENT_TIMESTAMP
-      WHERE id = 1
-    `).bind(urls.results.length, urls.results.length).run();
+    return new Response("Completed");
   }
 }

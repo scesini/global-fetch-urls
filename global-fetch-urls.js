@@ -1,4 +1,4 @@
-export class GlobalFetchUrls {
+export class GlobalDurableObjectsFetchUrls {
   constructor(state, env) {
     this.state = state;
     this.env = env;
@@ -9,9 +9,9 @@ export class GlobalFetchUrls {
 
     if (url.pathname === "/lock") {
       const locked = await this.state.storage.get("running");
-      if (locked) {
+      if (locked)
         return new Response("Locked", { status: 423 });
-      }
+
       await this.state.storage.put("running", true);
       return new Response("Acquired");
     }
