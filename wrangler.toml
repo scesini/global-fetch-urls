@@ -1,4 +1,4 @@
-name = "global-fetch-urls"
+name = "global-durable-objects-fetch-urls"
 main = "index.js"
 compatibility_date = "2024-05-01"
 workers_dev = true
